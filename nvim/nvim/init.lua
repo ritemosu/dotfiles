@@ -27,15 +27,60 @@ end
 o.completeopt = { "menu", "menuone", "noselect" } -- Enter never auto-accepts
 o.pumheight = 10
 
+-- Colors ------------------------------------------------------------------
+-- The default colorscheme with a bluish palette (Tokyo Night colors) on top,
+-- so code is not mostly white. Colors for variables, functions, types, macros
+-- etc. come from clangd's semantic highlighting.
+local c = {
+  fg = "#c0caf5", dim = "#a9b1d6", comment = "#565f89",
+  blue = "#7aa2f7", cyan = "#7dcfff", sky = "#2ac3de", teal = "#73daca",
+  green = "#9ece6a", yellow = "#e0af68", orange = "#ff9e64", magenta = "#bb9af7", red = "#f7768e",
+}
+local palette = {
+  Normal = { fg = c.fg },
+  Comment = { fg = c.comment, italic = true },
+  Constant = { fg = c.orange },       -- numbers, true/false
+  String = { fg = c.green },
+  Character = { fg = c.green },
+  Identifier = { fg = c.fg },
+  Function = { fg = c.blue },
+  Statement = { fg = c.magenta },     -- if, for, return, ...
+  Operator = { fg = c.sky },
+  PreProc = { fg = c.cyan },          -- #include, #define
+  Type = { fg = c.sky },              -- int, vector, ll, ...
+  Special = { fg = c.sky },
+  Delimiter = { fg = c.dim },
+  ["@lsp.type.macro"] = { fg = c.cyan },                    -- rep, all
+  ["@lsp.type.namespace"] = { fg = c.cyan },                -- std, atcoder
+  ["@lsp.type.function"] = { fg = c.blue },
+  ["@lsp.type.method"] = { fg = c.blue },
+  ["@lsp.type.class"] = { fg = c.sky },
+  ["@lsp.type.type"] = { fg = c.sky },
+  ["@lsp.type.typeParameter"] = { fg = c.sky },
+  ["@lsp.type.parameter"] = { fg = c.yellow, italic = true },
+  ["@lsp.type.property"] = { fg = c.teal },                 -- struct members
+  ["@lsp.type.enumMember"] = { fg = c.orange },
+  ["@lsp.type.variable"] = { fg = c.fg },                   -- local variables
+  ["@lsp.typemod.variable.globalScope"] = { fg = c.yellow }, -- global arrays (dx, dy)
+  ["@lsp.typemod.variable.fileScope"] = { fg = c.yellow },
+}
+
 -- Transparent background (the terminal's background shows through).
-local function transparent()
+local function apply_colors()
+  if vim.g.colors_name == nil or vim.g.colors_name == "default" then
+    for group, spec in pairs(palette) do
+      vim.api.nvim_set_hl(0, group, spec)
+    end
+  end
   for _, group in ipairs({ "Normal", "NormalNC", "NormalFloat", "FloatBorder",
                            "SignColumn", "LineNr", "EndOfBuffer" }) do
-    vim.api.nvim_set_hl(0, group, { bg = "NONE", fg = vim.api.nvim_get_hl(0, { name = group }).fg })
+    local hl = vim.api.nvim_get_hl(0, { name = group, link = false })
+    hl.bg = nil
+    vim.api.nvim_set_hl(0, group, hl)
   end
 end
-vim.api.nvim_create_autocmd("ColorScheme", { callback = transparent })
-transparent()
+vim.api.nvim_create_autocmd("ColorScheme", { callback = apply_colors })
+apply_colors()
 
 -- Diagnostics: show the message at the end of the line.
 vim.diagnostic.config({ virtual_text = true, severity_sort = true })
