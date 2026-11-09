@@ -104,6 +104,11 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
         cp "$dot"/wezterm/*.lua "$winhome/.config/wezterm/"
         echo "wezterm: config copied to $winhome/.config/wezterm"
     fi
+    # Windows Terminal: colors, transparency, Alt key bindings (see windows-terminal/).
+    for wt in "$winhome"/AppData/Local/Packages/Microsoft.WindowsTerminal_*/LocalState/settings.json \
+              "$winhome"/AppData/Local/Microsoft/Windows\ Terminal/settings.json; do
+        [ -f "$wt" ] && python3 "$dot/windows-terminal/apply.py" "$wt"
+    done
 fi
 
 echo

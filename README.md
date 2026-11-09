@@ -25,26 +25,36 @@ Neovim は 0.11 以上が必要です（`vim.lsp.config` を使っています�
 
 ## Windows でのセットアップ（WSL2）
 
-競プロ環境は WSL2 の Ubuntu の中に作り、WezTerm だけ Windows 側で動かします。
+競プロ環境は WSL2 の Ubuntu の中に作り、ターミナルは Windows Terminal を使います（WezTerm はスマート アプリ コントロールにブロックされることがあるため）。
 
 1. PowerShell を管理者で開き、`wsl --install` を実行して再起動する。起動した Ubuntu でユーザー名とパスワードを決める
-2. WezTerm を入れる（PowerShell で `winget install wez.wezterm`）
-3. Ubuntu の中で次を実行する
+2. Ubuntu の中で次を実行する
 
    ```bash
    sudo apt update && sudo apt install -y git curl
    git clone https://github.com/ritemosu/dotfiles.git ~/dotfiles
    sh ~/dotfiles/cp/install.sh
-   git config --global user.name "Keita-Kindai"
-   git config --global user.email "<メールアドレス>"
+   git config --global user.name "ritemosu"
+   git config --global user.email "190578955+ritemosu@users.noreply.github.com"
    ```
 
-4. WezTerm を起動し直す。WSL の Ubuntu が直接開く
+3. Windows Terminal を開き直す。Ubuntu が開き、背景が透過した青い配色になる
 
-- `install.sh` は WezTerm の設定を `%USERPROFILE%\.config\wezterm` にコピーする。Windows は WSL のシンボリックリンクを辿れないのでコピーにしている。設定を変えたら `install.sh` を再実行する
-- macOS で Cmd を使うキーは、Windows では Alt に置き換わる（例: Alt+T で新しいタブ、Alt+C / Alt+V でコピー / 貼り付け）
+`install.sh` は Windows Terminal の settings.json に `windows-terminal/settings.json` の内容をマージする（元のファイルは `settings.json.bak-*` として残る）。
+
+| 操作 | キー |
+| --- | --- |
+| 新しいタブ / タブを閉じる | Alt+T / Alt+W |
+| 左右に分割 / 上下に分割 / 分割を閉じる | Alt+Q / Alt+B / Alt+M |
+| 分割した画面の移動 | Alt+H / J / K / L |
+| 分割した画面の最大化切り替え | Alt+Z |
+| コピー / 貼り付け | Alt+C / Alt+V |
+| タブ切り替え | Alt+1〜9、Ctrl+Tab |
+| 全画面 | Alt+F |
+
 - クリップボードは win32yank、ブラウザは wslview で Windows 側と連携する
 - 作業ファイルは `~/CP`（WSL 側）に置く。`/mnt/c` の下はビルドが遅い
+- WezTerm を使える PC では、`install.sh` が WezTerm の設定も `%USERPROFILE%\.config\wezterm` にコピーする
 
 ## 競プロの流れ
 
