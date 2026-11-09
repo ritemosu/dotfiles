@@ -5,7 +5,7 @@ Neovim（プラグインなしの最小構成）、WezTerm、Git、競プロ用�
 ## セットアップ（macOS / Ubuntu 共通）
 
 ```bash
-git clone git@github.com:Keita-Kindai/dotfiles.git ~/dotfiles
+git clone https://github.com/ritemosu/dotfiles.git ~/dotfiles
 sh ~/dotfiles/cp/install.sh
 ```
 
@@ -19,6 +19,7 @@ sh ~/dotfiles/cp/install.sh
 - `cp-build` `cpt` `cpnew` を `~/.local/bin` にリンクする
 - `~/CP` に `compile_flags.txt` と `.clangd` を置く（clangd 用）
 - `~/CP/atcoder` も `~/CP/ac-library` もなければ ACL を clone する
+- `~/CP/CP_Library`（自作ライブラリ、private）を clone する（GitHub に SSH キーの登録が必要）
 
 Neovim は 0.11 以上が必要です（`vim.lsp.config` を使っています）。Ubuntu の apt 版は古いことが多いので、公式の AppImage か tarball を使ってください。
 
@@ -32,7 +33,7 @@ Neovim は 0.11 以上が必要です（`vim.lsp.config` を使っています�
 
    ```bash
    sudo apt update && sudo apt install -y git curl
-   git clone https://github.com/Keita-Kindai/dotfiles.git ~/dotfiles
+   git clone https://github.com/ritemosu/dotfiles.git ~/dotfiles
    sh ~/dotfiles/cp/install.sh
    git config --global user.name "Keita-Kindai"
    git config --global user.email "<メールアドレス>"
@@ -59,12 +60,15 @@ Neovim 内のキー:
 
 | キー | 動作 |
 | --- | --- |
-| `F5` | ビルドしてサンプル（`test/`）で `oj t` |
-| `F6` | ビルドして手入力で実行 |
-| `F8` | テストして提出（`cps`） |
+| `Space t`（`F5`） | ビルドしてサンプル（`test/`）で `oj t` |
+| `Space r`（`F6`） | ビルドして手入力で実行 |
+| `Space s`（`F8`） | テストして提出（`cps`） |
+| `q` | テスト画面を閉じる（終了後は結果の最終行にカーソルがある。`k` や `Ctrl-u` で上へスクロール） |
 | `:P b` | 同じコンテストの b 問題に切り替え（保存してから移動、Tab 補完あり） |
 | `Space n` / `Space p` | 次 / 前の問題へ |
-| `:Lib seg` | icpc-kit の自作ライブラリを `int main()` の直前に挿入（Tab 補完あり） |
+| `Space l` | ライブラリ一覧を開く。文字を打って絞り込み、Tab で選んで Enter で `int main()` の直前に挿入 |
+| `:tree_diameter` | ライブラリ名だけ打って Enter で挿入 |
+| `:Lib seg uf` | 複数まとめて挿入 |
 | `:%y` | ファイル全体をクリップボードへコピー（提出用） |
 | `Ctrl-Space` | 補完を手動で開く（`.` `->` `::` の後は自動） |
 | `Tab` / `Shift-Tab` | 補完候補の選択、`Ctrl-y` で確定 |
@@ -85,5 +89,7 @@ AtCoder のメモリ制限表記が `MB` から `MiB` に変わり、oj が `ass
 
 ## ライブラリの扱い
 
-- ACL: `#include <atcoder/all>` のまま書く。AtCoder はそのまま提出できる。他サイトでは icpc-kit の `ace` か `oj-bundle` で展開してから提出する。
-- 自作ライブラリ: `icpc-kit/my-library` に置き、`:Lib 名前` で貼り付ける。新しく足すときは `icpc-kit/scripts/library_insert/library_insert.py` の `LIBRARIES` に名前を登録する。
+- ACL: `#include <atcoder/all>` のまま書く。AtCoder はそのまま提出できる。他サイトでは `oj-bundle`（`pipx install online-judge-verify-helper`）で展開してから提出する。
+- 自作ライブラリ: `~/CP/CP_Library` に 1 ファイル 1 ライブラリで置く（`main()` は書かない）。`:ファイル名`（`tree-diameter.hpp` なら `:tree_diameter`）か `Space l` で `int main()` の直前に貼り付ける。置いた直後から使える。`archive/` は除外
+- ライブラリのファイルには `#include <bits/stdc++.h>` と `using namespace std;` を書いたままにしておく。ファイル単体でコンパイルや clangd のチェックができ、貼り付け時には重複分が自動で消える
+- 貼り付け時、`#include <bits/stdc++.h>` や `using namespace std;` など、すでに書いてある行は重複させない。同じライブラリを 2 回貼ろうとすると `already inserted` になる

@@ -75,14 +75,16 @@ for f in "$dot"/cp/bin/*; do
     ln -sf "$f" "$bin/$(basename "$f")"
 done
 
-# CP root: clangd config, AtCoder Library, icpc-kit (for :Lib)
+# CP root: clangd config, AtCoder Library, CP_Library (for :NAME / Space l)
 mkdir -p "$root"
 cp "$dot/cp/compile_flags.txt" "$dot/cp/.clangd" "$root/"
 if [ ! -d "$root/atcoder" ] && [ ! -d "$root/ac-library" ]; then
     git clone --depth 1 https://github.com/atcoder/ac-library "$root/ac-library"
 fi
-if [ ! -d "$root/icpc-kit" ]; then
-    git clone https://github.com/hamikan/icpc-kit "$root/icpc-kit" || echo "icpc-kit: clone failed (:Lib will not work)"
+if [ ! -d "$root/CP_Library" ]; then
+    # Private repository: needs an SSH key registered on GitHub.
+    git clone git@github.com:Keita-Kindai/CP_Library.git "$root/CP_Library" \
+        || echo "CP_Library: clone failed (register an SSH key, then clone it to $root/CP_Library)"
 fi
 
 # WezTerm config: link on macOS / Linux desktop (WSL copies it to Windows below).

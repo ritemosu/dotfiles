@@ -108,22 +108,43 @@ end, { expr = true })
 
 -- Competitive programming -------------------------------------------------
 -- Run a command in a terminal split, in the directory of the current file.
-local function run_in_term(cmd)
+-- When it finishes: back to Normal mode, cursor on the last output line
+-- (the result summary). Scroll with k / Ctrl-u, close with q.
+local function run_in_term(cmd, interactive)
   vim.cmd("silent! write")
   local dir = vim.fn.expand("%:p:h")
   vim.cmd("botright 15split | enew")
-  vim.fn.jobstart(cmd, { term = true, cwd = dir })
-  vim.cmd("startinsert")
+  local win, buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+  vim.fn.jobstart(cmd, {
+    term = true,
+    cwd = dir,
+    on_exit = function()
+      vim.schedule(function()
+        if not vim.api.nvim_win_is_valid(win) then return end
+        if vim.api.nvim_get_current_win() == win then vim.cmd("stopinsert") end
+        local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+        local last = #lines
+        while last > 1 and lines[last] == "" do last = last - 1 end
+        vim.api.nvim_win_set_cursor(win, { last, 0 })
+      end)
+    end,
+  })
+  vim.keymap.set("n", "q", "<cmd>close<CR>", { buffer = buf, nowait = true })
+  if interactive then vim.cmd("startinsert") end
 end
 
--- F5: build and test against samples (test/*.in). F6: build and run with stdin.
-vim.keymap.set("n", "<F5>", function() run_in_term({ "cpt" }) end, { desc = "Build + oj test" })
-vim.keymap.set("n", "<F6>", function()
-  run_in_term({ "sh", "-c", "cp-build main.cpp a.out && ./a.out" })
-end, { desc = "Build + run" })
-
--- F8: test and submit (cps) the problem in the current file's directory.
-vim.keymap.set("n", "<F8>", function() run_in_term({ "cps" }) end, { desc = "Test + submit" })
+-- Space t: build + test samples   Space r: build + run with stdin
+-- Space s: test + submit (cps)     (F5 / F6 / F8 do the same, for keyboards
+-- where the F keys are not media keys)
+local function test() run_in_term({ "cpt" }) end
+local function run() run_in_term({ "sh", "-c", "cp-build main.cpp a.out && ./a.out" }, true) end
+local function submit() run_in_term({ "cps" }, true) end
+vim.keymap.set("n", "<leader>t", test, { desc = "Build + oj test" })
+vim.keymap.set("n", "<leader>r", run, { desc = "Build + run" })
+vim.keymap.set("n", "<leader>s", submit, { desc = "Test + submit" })
+vim.keymap.set("n", "<F5>", test, { desc = "Build + oj test" })
+vim.keymap.set("n", "<F6>", run, { desc = "Build + run" })
+vim.keymap.set("n", "<F8>", submit, { desc = "Test + submit" })
 
 -- Switch problems inside contests/<contest>/<task>/main.cpp.
 --   :P b         open problem b
@@ -172,27 +193,108 @@ vim.api.nvim_create_user_command("P", function(opts) open_problem(opts.args:lowe
 vim.keymap.set("n", "<leader>n", function() step_problem(1) end, { desc = "Next problem" })
 vim.keymap.set("n", "<leader>p", function() step_problem(-1) end, { desc = "Previous problem" })
 
--- :Lib NAME  inserts a library from icpc-kit/my-library before int main().
-local lib_cmd = (vim.env.ICPC_KIT or vim.fn.expand("~/CP/icpc-kit")) .. "/bin/lib"
+-- Libraries -----------------------------------------------------------------
+-- Libraries live in ~/CP/CP_Library (one file each, no main()).
+-- :NAME            inserts that library just before int main() (e.g. :tree_diameter)
+-- Space l          opens the list (type to narrow, Tab / Enter to choose)
+-- :Lib A B ...     inserts several at once
+local my_lib = vim.fn.expand("~/CP/CP_Library")
+
+-- name -> file. The name is the file name in lowercase with "-" turned into
+-- "_" (tree-diameter.hpp -> tree_diameter); DIR_NAME if two files share it.
+local function libraries()
+  local found = {}
+  local function add(name, path)
+    name = name:lower():gsub("[^%w_]", "_")
+    if found[name] == nil then
+      found[name] = path
+      return true
+    end
+    return found[name] == path
+  end
+  for _, path in ipairs(vim.fn.globpath(my_lib, "**/*.[ch]pp", false, true)) do
+    local rel = path:sub(#my_lib + 2)
+    local text = table.concat(vim.fn.readfile(path), "\n")
+    -- skip files with their own main() and the archive folder
+    if not text:find("\nint%s+main%s*%(") and not rel:find("^archive/") then
+      local base = vim.fn.fnamemodify(rel, ":t:r")
+      if not add(base, path) then
+        add(vim.fn.fnamemodify(rel, ":h") .. "_" .. base, path)
+      end
+    end
+  end
+  return found
+end
+
+-- Insert a file before int main(). Leading #include / #define / using lines
+-- that the buffer already has are dropped.
+local function insert_file(name, path)
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local have = {}
+  for _, l in ipairs(lines) do have[vim.trim(l):gsub("atcoder::", "")] = true end
+
+  local body, prologue = {}, true
+  for _, l in ipairs(vim.fn.readfile(path)) do
+    local t = vim.trim(l)
+    local is_prologue = t == "" or t:match("^#include") or t:match("^#define") or t:match("^#pragma once")
+      or t:match("^using ")
+    if prologue and is_prologue then
+      if t ~= "" and not t:match("^#pragma once") and not have[t:gsub("atcoder::", "")] then
+        table.insert(body, l)
+      end
+    else
+      prologue = false
+      table.insert(body, l)
+    end
+  end
+
+  local first_code
+  for _, l in ipairs(body) do
+    if not vim.trim(l):match("^#") and not vim.trim(l):match("^using ") then first_code = l break end
+  end
+  if first_code and vim.tbl_contains(lines, first_code) then
+    return "already inserted: " .. name
+  end
+  for i, l in ipairs(lines) do
+    if l:match("^int%s+main%s*%(") then
+      table.insert(body, "")
+      vim.api.nvim_buf_set_lines(0, i - 1, i - 1, false, body)
+      return "inserted: " .. name
+    end
+  end
+  return "int main() not found"
+end
+
 vim.api.nvim_create_user_command("Lib", function(opts)
+  local libs, msgs = libraries(), {}
+  for _, name in ipairs(opts.fargs) do
+    name = name:lower()
+    table.insert(msgs, libs[name] and insert_file(name, libs[name]) or ("unknown library: " .. name))
+  end
   vim.cmd("silent! write")
-  local cmd = vim.list_extend({ lib_cmd }, opts.fargs)
-  local res = vim.system(cmd, { cwd = vim.fn.expand("%:p:h"), text = true }):wait()
-  vim.cmd("checktime")
-  vim.notify(vim.trim((res.stdout or "") .. (res.stderr or "")))
+  vim.notify(table.concat(msgs, "\n"))
 end, {
   nargs = "+",
   complete = function(arglead)
-    local out = vim.system({ lib_cmd, "--list" }, { text = true }):wait().stdout or ""
-    local names = {}
-    for name in out:gmatch("(%S+)[^\n]*\n") do
-      if vim.startswith(name, arglead) then
-        table.insert(names, name)
-      end
-    end
-    return names
+    local names = vim.tbl_keys(libraries())
+    table.sort(names)
+    return vim.tbl_filter(function(n) return n:find(arglead:lower(), 1, true) end, names)
   end,
 })
+-- :NAME also works (e.g. :rerooting, :seg): pressing Enter on a command line
+-- that is exactly a library name runs "Lib NAME" instead.
+vim.keymap.set("c", "<CR>", function()
+  if vim.fn.getcmdtype() == ":" then
+    local line = vim.trim(vim.fn.getcmdline()):lower()
+    -- only a single word that is not a full built-in command name (e.g. :w)
+    if line:match("^[%w_]+$") and vim.fn.exists(":" .. line) ~= 2 and libraries()[line] then
+      return "<C-u>Lib " .. line .. "<CR>"
+    end
+  end
+  return "<CR>"
+end, { expr = true })
+o.wildcharm = 9 -- lets the mapping below open the completion list with <Tab>
+vim.keymap.set("n", "<leader>l", ":Lib <Tab>", { desc = "Insert library" })
 
 -- Terminal: Esc leaves terminal mode.
 vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]])
