@@ -62,7 +62,10 @@ config.window_frame = {
 -- タブの追加ボタンを非表示
 config.show_new_tab_button_in_tab_bar = false
 -- タブの閉じるボタンを非表示
-config.show_close_tab_button_in_tabs = false
+-- (nightly builds only; the stable release 20240203 rejects this option)
+if (tonumber(wezterm.version:sub(1, 8)) or 0) > 20240203 then
+  config.show_close_tab_button_in_tabs = false
+end
 
 -- タブ同士の境界線を非表示
 config.colors = {
