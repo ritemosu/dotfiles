@@ -123,7 +123,7 @@ vim.keymap.set("i", "<S-Tab>", function()
 end, { expr = true })
 
 -- Auto-close brackets -------------------------------------------------------
---   ( [ {    insert the pair with the cursor inside
+--   ( [ { "  insert the pair with the cursor inside
 --   ) ] }    step over the same closing bracket
 --   Enter    between {} opens an indented block
 --   BS       between an empty pair deletes both
@@ -139,6 +139,14 @@ for open, close in pairs(pairs_map) do
     return next == close and "<C-g>U<Right>" or close
   end, { expr = true })
 end
+-- "  inserts "" with the cursor inside, steps over a closing ", and stays a
+--    single " after a backslash (\")
+vim.keymap.set("i", '"', function()
+  local prev, next = around_cursor()
+  if prev == "\\" then return '"' end
+  if next == '"' then return "<C-g>U<Right>" end
+  return '""<C-g>U<Left>'
+end, { expr = true })
 vim.keymap.set("i", "<CR>", function()
   local prev, next = around_cursor()
   if vim.fn.pumvisible() == 0 and prev == "{" and next == "}" then
@@ -148,7 +156,8 @@ vim.keymap.set("i", "<CR>", function()
 end, { expr = true })
 vim.keymap.set("i", "<BS>", function()
   local prev, next = around_cursor()
-  return (pairs_map[prev] and pairs_map[prev] == next) and "<BS><Del>" or "<BS>"
+  local empty_pair = (pairs_map[prev] and pairs_map[prev] == next) or (prev == '"' and next == '"')
+  return empty_pair and "<BS><Del>" or "<BS>"
 end, { expr = true })
 
 -- Competitive programming -------------------------------------------------
